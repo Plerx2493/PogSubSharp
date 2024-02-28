@@ -46,18 +46,11 @@ public partial class EventSubClient
         // connect to new uri
         await _webSocket.ConnectAsync(uri);
         
-        // wait for welcome on new socket
-        var ct = new CancellationTokenSource();
-        _webSocket.OnSessionWelcome += (sender, args) => ct.Cancel();
-
-        try
-        {
-            await Task.Delay(-1, ct.Token);
-        }
-        catch (TaskCanceledException)
-        {
-            // ignore
-        }
+        // wait for welcome message on new socket
+        var ct = new TaskCompletionSource();
+        _webSocket.OnSessionWelcome += WelcomeReceived;
+        await ct.Task;
+        _webSocket.OnSessionWelcome -= WelcomeReceived;
         
         // disconnect old socket
         await oldWebSocket.DisconnectAsync();
@@ -71,6 +64,11 @@ public partial class EventSubClient
         oldWebSocket.OnSessionWelcome -= OnSessionWelcomeAsync;
         
         await oldWebSocket.DisposeAsync();
+
+        void WelcomeReceived(object? _, SessionWelcomeEventArgs __)
+        {
+            ct.SetResult();
+        }
     }
 
     private async void OnErrorAsync(object? sender, Exception exception)
