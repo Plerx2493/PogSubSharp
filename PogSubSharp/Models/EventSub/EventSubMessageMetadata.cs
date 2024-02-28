@@ -2,7 +2,7 @@
 
 namespace PogSubSharp.Models.EventSub;
 
-public struct EventSubMessageMetadata
+public class EventSubMessageMetadata
 {
     [JsonPropertyName("message_id")]
     public Guid Id { get; set; }

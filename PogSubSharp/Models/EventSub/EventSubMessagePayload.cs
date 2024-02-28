@@ -1,9 +1,11 @@
 ﻿using System.Text.Json.Serialization;
+using PogSubSharp.Converter;
 using PogSubSharp.Models.Events;
 
 namespace PogSubSharp.Models.EventSub;
 
-public struct EventSubMessagePayload
+//[JsonConverter(typeof(EventSubMessagePayloadConverter))]
+public class EventSubMessagePayload
 {
     [JsonPropertyName("session")]
     public EventSocketsSession? Session { get; set; }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace PogSubSharp.Clients;
 
@@ -6,9 +7,11 @@ public partial class EventSubClient
 {
     private bool isCanceled = false;
     private EventSubWebSocket _webSocket;
+    private ILogger _logger;
     
-    public EventSubClient()
+    public EventSubClient(ILogger? logger = null)
     {
-        _webSocket = new EventSubWebSocket(new NullLogger<EventSubWebSocket>());
+        _logger = logger ?? new NullLogger<EventSubClient>();
+        _webSocket = new EventSubWebSocket(_logger);
     }
 }

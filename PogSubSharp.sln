@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PogSubSharp", "PogSubSharp\PogSubSharp.csproj", "{865DD715-A2BA-4CB5-AADE-A5BFDA123720}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PogSubSharp.Test", "PogSubSharp.Test\PogSubSharp.Test.csproj", "{521FC9A3-E62A-4827-81FA-206D357712C5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{865DD715-A2BA-4CB5-AADE-A5BFDA123720}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{865DD715-A2BA-4CB5-AADE-A5BFDA123720}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{865DD715-A2BA-4CB5-AADE-A5BFDA123720}.Release|Any CPU.Build.0 = Release|Any CPU
+		{521FC9A3-E62A-4827-81FA-206D357712C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{521FC9A3-E62A-4827-81FA-206D357712C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{521FC9A3-E62A-4827-81FA-206D357712C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{521FC9A3-E62A-4827-81FA-206D357712C5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

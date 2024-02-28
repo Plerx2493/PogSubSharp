@@ -3,11 +3,11 @@ using System.Text.Json.Serialization;
 
 namespace PogSubSharp.Models.EventSub;
 
-public struct EventSubFrame
+public class EventSubFrame
 {
     [JsonPropertyName("metadata")]
     public EventSubMessageMetadata Metadata { get; set; }
     
     [JsonPropertyName("payload")]
-    public EventSubMessagePayload Payload { get; set; }
+    public EventSubMessagePayload? Payload { get; set; }
 }

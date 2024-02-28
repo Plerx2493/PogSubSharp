@@ -16,9 +16,15 @@ public class EventSubMessagePayloadConverter : JsonConverter<EventSubMessagePayl
         EventSubMessagePayload payload = new();
         
         string? eventType = null;
-
+        bool isFirstToken = true;
+        
         while (reader.Read())
         {
+            if (reader.TokenType == JsonTokenType.EndObject && isFirstToken)
+            {
+                return default;
+            }
+            
             if (reader.TokenType == JsonTokenType.EndObject)
             {
                 return payload;
@@ -48,6 +54,8 @@ public class EventSubMessagePayloadConverter : JsonConverter<EventSubMessagePayl
                     reader.Skip();
                     break;
             }
+            
+            isFirstToken = false;
         }
         
         return payload;

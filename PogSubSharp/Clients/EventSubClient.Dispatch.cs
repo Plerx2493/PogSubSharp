@@ -1,121 +1,113 @@
-﻿using PogSubSharp.Models.Events;
-using PogSubSharp.Models.EventSub;
+﻿using Microsoft.Extensions.Logging;
+using PogSubSharp.Models.EventSub.Events;
 
 namespace PogSubSharp.Clients;
 
 public partial class EventSubClient
 {
-    public EventSocketsSession Session { get; private set; }
-    private DateTimeOffset _lastKeepAlive;
-
-    private Task? receiverTask;
-    private Task? keepAliveTask;
-    
-    public async Task ConnectAsync()
+    public async Task ConnectAsync(string uri)
     {
-        await _webSocket.ConnectAsync();
-        receiverTask = HandleReceive();
-        keepAliveTask = HandleKeepAlive();
+        var wsUri = new Uri(uri);
+        await _webSocket.ConnectAsync(wsUri);
+        
+        _webSocket.OnError += OnErrorAsync;
+        _webSocket.OnRevocation += OnRevocationAsync;
+        _webSocket.OnNotification += OnNotificationAsync;
+        _webSocket.OnSessionKeepAlive += OnSessionKeepAliveAsync;
+        _webSocket.OnSessionReconnect += OnSessionReconnectAsync;
+        _webSocket.OnSessionWelcome += OnSessionWelcomeAsync;
     }
     
     public async Task DisconnectAsync()
     {
         await _webSocket.DisconnectAsync();
-        isCanceled = true;
         
-        receiverTask?.Dispose();
-        keepAliveTask?.Dispose();
-        
-        receiverTask = null;
-        keepAliveTask = null;
+        _webSocket.OnError -= OnErrorAsync;
+        _webSocket.OnRevocation -= OnRevocationAsync;
+        _webSocket.OnNotification -= OnNotificationAsync;
+        _webSocket.OnSessionKeepAlive -= OnSessionKeepAliveAsync;
+        _webSocket.OnSessionReconnect -= OnSessionReconnectAsync;
+        _webSocket.OnSessionWelcome -= OnSessionWelcomeAsync;
     }
-    
-    private async Task HandleReceive()
+
+    private async Task HandleReconnectAsync(Uri uri)
     {
-        while (!isCanceled)
+        var oldWebSocket = _webSocket;
+        _webSocket = new EventSubWebSocket(_logger);
+        
+        // setup new event handlers
+        _webSocket.OnError += OnErrorAsync;
+        _webSocket.OnRevocation += OnRevocationAsync;
+        _webSocket.OnNotification += OnNotificationAsync;
+        _webSocket.OnSessionKeepAlive += OnSessionKeepAliveAsync;
+        _webSocket.OnSessionReconnect += OnSessionReconnectAsync;
+        _webSocket.OnSessionWelcome += OnSessionWelcomeAsync;
+        
+        // connect to new uri
+        await _webSocket.ConnectAsync(uri);
+        
+        // wait for welcome on new socket
+        var ct = new CancellationTokenSource();
+        _webSocket.OnSessionWelcome += (sender, args) => ct.Cancel();
+
+        try
         {
-            EventSubFrame frame;
-            
-            try
-            {
-                frame = await _webSocket.ReceiveAsync();
-            }
-            catch (Exception e)
-            {
-                _ = OnErrorAsync(e);
-                continue;
-            }
-            
-            _lastKeepAlive = frame.Metadata.Timestamp;
-
-            switch (frame.Metadata.Type)
-            {
-                case EventSubMessageType.session_welcome:
-                    ArgumentNullException.ThrowIfNull(frame.Payload.Session);
-                    Session = frame.Payload.Session!;
-                    _ = OnSessionWelcomeAsync(Session);
-                    break;
-                case EventSubMessageType.session_reconnect:
-                    _ = OnSessionReconnectAsync(frame.Payload.Session!);                    
-                    break;
-                case EventSubMessageType.session_keepalive:
-                    _ = OnSessionKeepAliveAsync();
-                    break;
-                case EventSubMessageType.notification:
-                    _ = OnNotificationAsync(frame.Payload.Subscription!, frame.Payload.Event!);
-                    break;
-                case EventSubMessageType.revocation:
-                    _ = OnRevocationAsync(frame.Payload.Subscription!);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-                
+            await Task.Delay(-1, ct.Token);
         }
-
-            
-    }
-
-    private async Task OnErrorAsync(Exception exception)
-    {
-        throw new NotImplementedException();
-    }
-
-    private async Task OnRevocationAsync(EventSubSubscription payloadSubscription)
-    {
-        throw new NotImplementedException();
-    }
-
-    private async Task OnNotificationAsync(EventSubSubscription payloadSubscription, IEventSubEvent payloadEvent)
-    {
-        throw new NotImplementedException();
-    }
-
-    private async Task OnSessionKeepAliveAsync()
-    {
-        throw new NotImplementedException();
-    }
-
-    private async Task OnSessionReconnectAsync(EventSocketsSession session)
-    {
-        throw new NotImplementedException();
-    }
-
-    private async Task OnSessionWelcomeAsync(EventSocketsSession session)
-    {
-        
-    }
-    
-    private async Task HandleKeepAlive()
-    {
-        while (!isCanceled)
+        catch (TaskCanceledException)
         {
-            await Task.Delay(Session.KeepaliveTimeoutSeconds * 1000);
-            if (DateTimeOffset.UtcNow - _lastKeepAlive > TimeSpan.FromSeconds(Session.KeepaliveTimeoutSeconds + 5))
-            {
-                await _webSocket.DisconnectAsync();
-                await _webSocket.ConnectAsync();
-            }
+            // ignore
         }
+        
+        // disconnect old socket
+        await oldWebSocket.DisconnectAsync();
+        
+        // remove old event handlers
+        oldWebSocket.OnError -= OnErrorAsync;
+        oldWebSocket.OnRevocation -= OnRevocationAsync;
+        oldWebSocket.OnNotification -= OnNotificationAsync;
+        oldWebSocket.OnSessionKeepAlive -= OnSessionKeepAliveAsync;
+        oldWebSocket.OnSessionReconnect -= OnSessionReconnectAsync;
+        oldWebSocket.OnSessionWelcome -= OnSessionWelcomeAsync;
+        
+        await oldWebSocket.DisposeAsync();
+    }
+
+    private async void OnErrorAsync(object? sender, Exception exception)
+    {
+        _logger.LogError(exception, "An error occurred while receiving from the WebSocket");
+    }
+
+    private async void OnRevocationAsync(object? sender, RevocationEventArgs revocationEventArgs)
+    {
+        var payloadSubscription = revocationEventArgs.Subscription;
+        _logger.LogWarning("Subscription {SubscriptionId} was revoked", payloadSubscription.Id);
+    }
+
+    private async void OnNotificationAsync(object? sender, NotificationEventArgs notificationEventArgs)
+    {
+        var payloadSubscription = notificationEventArgs.Subscription;
+        var payloadEvent = notificationEventArgs.Event;
+       _logger.LogInformation("Received notification for subscription {SubscriptionId}", payloadSubscription.Id);
+    }
+
+    private async void OnSessionKeepAliveAsync(object? sender, SessionKeepAliveEventArgs sessionKeepAliveEventArgs)
+    {
+        _logger.LogInformation("Received keepalive");
+    }
+
+    private async void OnSessionReconnectAsync(object? sender, SessionReconnectEventArgs sessionReconnectEventArgs)
+    {
+        var session = sessionReconnectEventArgs.Session;
+        _logger.LogInformation("Reconnecting to session {SessionId}", session.Id);
+        
+        var reconnectUri = new Uri(session.ReconnectUrl!);
+        await HandleReconnectAsync(reconnectUri);
+    }
+
+    private async void OnSessionWelcomeAsync(object? sender, SessionWelcomeEventArgs sessionWelcomeEventArgs)
+    {
+        var session = sessionWelcomeEventArgs.Session;
+        _logger.LogInformation("Connected to session {SessionId}", session.Id);
     }
 }
