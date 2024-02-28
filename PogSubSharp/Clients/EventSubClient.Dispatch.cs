@@ -71,6 +71,11 @@ public partial class EventSubClient
         }
     }
 
+    private async Task HandleKeepAliveTimeout()
+    {
+        
+    }
+
     private async void OnErrorAsync(object? sender, Exception exception)
     {
         _logger.LogError(exception, "An error occurred while receiving from the WebSocket");
