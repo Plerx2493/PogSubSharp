@@ -45,6 +45,7 @@ public class EventSubMessagePayloadConverter : JsonConverter<EventSubMessagePayl
                     break;
                 case "subscription":
                     payload.Subscription = JsonSerializer.Deserialize<EventSubSubscription>(ref reader, options);
+                    eventType = payload.Subscription?.Type;
                     break;
                 case "event":
                     ArgumentNullException.ThrowIfNull(eventType);

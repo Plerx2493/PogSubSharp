@@ -53,6 +53,7 @@ public class ChannelPointsReward
     public int Cost { get; set; }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ChannelPointsRedemptionStatus
 {
     unknown,

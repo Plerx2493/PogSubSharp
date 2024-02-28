@@ -17,7 +17,7 @@ public class EventSubSubscription
     public string Version { get; set; }
     
     [JsonPropertyName("cost")]
-    public string Cost { get; set; }
+    public int Cost { get; set; }
     
     [JsonPropertyName("condition")]
     public Dictionary<string,string> Condition { get; set; }

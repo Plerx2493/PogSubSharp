@@ -9,10 +9,4 @@ public class EventSubTransport
     
     [JsonPropertyName("session_id")]
     public string SessionId { get; set; }
-    
-    [JsonPropertyName("connected_at")]
-    public DateTimeOffset ConnectedAt { get; set; }
-    
-    [JsonPropertyName("disconnected_at")]
-    public DateTimeOffset? DisconnectedAt { get; set; }
 }

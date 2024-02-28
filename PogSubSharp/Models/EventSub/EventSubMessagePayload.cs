@@ -4,7 +4,7 @@ using PogSubSharp.Models.Events;
 
 namespace PogSubSharp.Models.EventSub;
 
-//[JsonConverter(typeof(EventSubMessagePayloadConverter))]
+[JsonConverter(typeof(EventSubMessagePayloadConverter))]
 public class EventSubMessagePayload
 {
     [JsonPropertyName("session")]

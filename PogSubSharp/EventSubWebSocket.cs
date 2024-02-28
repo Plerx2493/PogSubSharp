@@ -15,7 +15,6 @@ public class EventSubWebSocket : IAsyncDisposable
 {
     private readonly ClientWebSocket _client;
     private readonly byte[] _receiveRawBuffer = new byte[4096];
-    private readonly MemoryStream _receiveStream = new();
     private ArrayPoolBufferWriter<byte> _receiveBuffer = new();
     private readonly CancellationToken _ct;
     private readonly ILogger _logger;
@@ -77,8 +76,6 @@ public class EventSubWebSocket : IAsyncDisposable
             return WebSocketFrame.Closed;
         }
         
-        _receiveStream.SetLength(0);
-
         try
         {
             WebSocketReceiveResult? result;
@@ -89,7 +86,7 @@ public class EventSubWebSocket : IAsyncDisposable
                     return WebSocketFrame.Closed;
                 }
                 result = await _client.ReceiveAsync(_receiveRawBuffer, CancellationToken.None);
-                _receiveBuffer.Write((ReadOnlySpan<byte>)_receiveRawBuffer.AsSpan());
+                _receiveBuffer.Write((ReadOnlySpan<byte>)_receiveRawBuffer.AsSpan().Slice(0, result.Count));
             } while (!result.EndOfMessage);
         }
         catch (OperationCanceledException)
@@ -97,7 +94,7 @@ public class EventSubWebSocket : IAsyncDisposable
             // ignore
         }
         
-        if (_receiveStream.Length == 0)
+        if (_receiveBuffer.WrittenCount == 0)
         {
             return WebSocketFrame.Empty;
         }
@@ -108,8 +105,17 @@ public class EventSubWebSocket : IAsyncDisposable
         _logger.LogTrace("Received {Data}", Encoding.UTF8.GetString(_receiveBuffer.WrittenSpan));
         
 #endif
+        EventSubFrame frame;
         
-        var frame = JsonSerializer.Deserialize<EventSubFrame>(_receiveBuffer.WrittenSpan)!;
+        try
+        {
+            frame = JsonSerializer.Deserialize<EventSubFrame>(_receiveBuffer.WrittenSpan)!;
+        }
+        catch (Exception e)
+        {
+            _receiveBuffer.Clear();
+            return WebSocketFrame.FromException(e);
+        }
         
         _receiveBuffer.Clear();
 
@@ -141,17 +147,7 @@ public class EventSubWebSocket : IAsyncDisposable
     {
         while (!IsDisposed)
         {
-            WebSocketFrame rawFrame;
-            
-            try
-            {
-                rawFrame = await ReceiveAsync();
-            }
-            catch (Exception e)
-            {
-                OnErrorAsync(e);
-                continue;
-            }
+            var rawFrame = await ReceiveAsync();
             
             if (rawFrame.IsClosed)
             {
@@ -161,6 +157,12 @@ public class EventSubWebSocket : IAsyncDisposable
             
             if (rawFrame.IsEmpty)
             {
+                continue;
+            }
+
+            if (rawFrame.IsException)
+            {
+                _logger.LogError(rawFrame.Exception, "An error occurred while receiving from the WebSocket");
                 continue;
             }
             
@@ -250,6 +252,6 @@ public class EventSubWebSocket : IAsyncDisposable
         }
         
         _client.Dispose();
-        await _receiveStream.DisposeAsync();
+        _receiveBuffer.Dispose();
     }
 }
