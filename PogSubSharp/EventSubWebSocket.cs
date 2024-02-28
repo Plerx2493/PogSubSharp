@@ -1,6 +1,8 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance.Buffers;
 using Microsoft.Extensions.Logging;
 using PogSubSharp.Models;
 using PogSubSharp.Models.Events;
@@ -14,7 +16,7 @@ public class EventSubWebSocket : IAsyncDisposable
     private readonly ClientWebSocket _client;
     private readonly byte[] _receiveRawBuffer = new byte[4096];
     private readonly MemoryStream _receiveStream = new();
-    private readonly SemaphoreSlim _receiveLock = new(1, 1);
+    private ArrayPoolBufferWriter<byte> _receiveBuffer = new();
     private readonly CancellationToken _ct;
     private readonly ILogger _logger;
     private int _keepAliveInterval;
@@ -33,15 +35,10 @@ public class EventSubWebSocket : IAsyncDisposable
     #region events
 
     public event EventHandler<SessionWelcomeEventArgs> OnSessionWelcome;
-    
     public event EventHandler<SessionReconnectEventArgs> OnSessionReconnect;
-    
     public event EventHandler<SessionKeepAliveEventArgs> OnSessionKeepAlive;
-    
     public event EventHandler<NotificationEventArgs> OnNotification;
-    
     public event EventHandler<RevocationEventArgs> OnRevocation;
-    
     public event EventHandler<Exception> OnError; 
 
     #endregion
@@ -80,8 +77,6 @@ public class EventSubWebSocket : IAsyncDisposable
             return WebSocketFrame.Closed;
         }
         
-        await _receiveLock.WaitAsync(_ct);
-        
         _receiveStream.SetLength(0);
 
         try
@@ -94,7 +89,7 @@ public class EventSubWebSocket : IAsyncDisposable
                     return WebSocketFrame.Closed;
                 }
                 result = await _client.ReceiveAsync(_receiveRawBuffer, CancellationToken.None);
-                _receiveStream.Write(_receiveRawBuffer, 0, result.Count);
+                _receiveBuffer.Write((ReadOnlySpan<byte>)_receiveRawBuffer.AsSpan());
             } while (!result.EndOfMessage);
         }
         catch (OperationCanceledException)
@@ -104,18 +99,19 @@ public class EventSubWebSocket : IAsyncDisposable
         
         if (_receiveStream.Length == 0)
         {
-            _receiveLock.Release();
             return WebSocketFrame.Empty;
         }
         
-        _receiveStream.Seek(0, SeekOrigin.Begin);
-        _logger.LogDebug("Received {Bytes} bytes", _receiveStream.Length);
-        _logger.LogTrace("Received {Data}", Encoding.UTF8.GetString(_receiveStream.ToArray()));
+#if DEBUG
         
-        _receiveStream.Seek(0, SeekOrigin.Begin);
-        var frame = JsonSerializer.Deserialize<EventSubFrame>(_receiveStream)!;
+        _logger.LogDebug("Received {Bytes} bytes", _receiveBuffer.WrittenCount);
+        _logger.LogTrace("Received {Data}", Encoding.UTF8.GetString(_receiveBuffer.WrittenSpan));
         
-        _receiveLock.Release();
+#endif
+        
+        var frame = JsonSerializer.Deserialize<EventSubFrame>(_receiveBuffer.WrittenSpan)!;
+        
+        _receiveBuffer.Clear();
 
         return new WebSocketFrame
         {
@@ -176,19 +172,19 @@ public class EventSubWebSocket : IAsyncDisposable
             {
                 case EventSubMessageType.session_welcome:
                     ArgumentNullException.ThrowIfNull(frame.Payload?.Session);
-                    _ = Task.Run(() => OnSessionWelcomeAsync(frame.Payload?.Session!), _ct);
+                    _ = Task.Run(() => HandleSessionWelcome(frame.Payload?.Session!), _ct);
                     break;
                 case EventSubMessageType.session_reconnect:
-                    _ = Task.Run(() => OnSessionReconnectAsync(frame.Payload?.Session!), _ct);                    
+                    _ = Task.Run(() => HandleSessionReconnect(frame.Payload?.Session!), _ct);                    
                     break;
                 case EventSubMessageType.session_keepalive:
-                    _ = Task.Run(OnSessionKeepAliveAsync, _ct);
+                    _ = Task.Run(HandleSessionKeepAlive, _ct);
                     break;
                 case EventSubMessageType.notification:
-                    _ = Task.Run(() => OnNotificationAsync(frame.Payload?.Subscription!, frame.Payload?.Event!), _ct);
+                    _ = Task.Run(() => HandleNotification(frame.Payload?.Subscription!, frame.Payload?.Event!), _ct);
                     break;
                 case EventSubMessageType.revocation:
-                    _ = Task.Run(() => OnRevocationAsync(frame.Payload?.Subscription!), _ct);
+                    _ = Task.Run(() => HandleRevocation(frame.Payload?.Subscription!), _ct);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -196,7 +192,7 @@ public class EventSubWebSocket : IAsyncDisposable
         }
     }
 
-    private void  OnRevocationAsync(EventSubSubscription payloadSubscription)
+    private void  HandleRevocation(EventSubSubscription payloadSubscription)
     {
         OnRevocation?.Invoke(this, new RevocationEventArgs
         {
@@ -204,7 +200,7 @@ public class EventSubWebSocket : IAsyncDisposable
         });
     }
 
-    private void OnNotificationAsync(EventSubSubscription payloadSubscription, IEventSubEvent payloadEvent)
+    private void HandleNotification(EventSubSubscription payloadSubscription, IEventSubEvent payloadEvent)
     {
         OnNotification?.Invoke(this, new NotificationEventArgs
         {
@@ -213,12 +209,12 @@ public class EventSubWebSocket : IAsyncDisposable
         });
     }
 
-    private void OnSessionKeepAliveAsync()
+    private void HandleSessionKeepAlive()
     {
         OnSessionKeepAlive?.Invoke(this, new SessionKeepAliveEventArgs());
     }
 
-    private void OnSessionReconnectAsync(EventSocketsSession payloadSession)
+    private void HandleSessionReconnect(EventSocketsSession payloadSession)
     {
         OnSessionReconnect?.Invoke(this, new SessionReconnectEventArgs
         {
@@ -226,7 +222,7 @@ public class EventSubWebSocket : IAsyncDisposable
         });
     }
 
-    private void OnSessionWelcomeAsync(object session)
+    private void HandleSessionWelcome(object session)
     {
         OnSessionWelcome?.Invoke(this, new SessionWelcomeEventArgs
         {
@@ -255,6 +251,5 @@ public class EventSubWebSocket : IAsyncDisposable
         
         _client.Dispose();
         await _receiveStream.DisposeAsync();
-        _receiveLock.Dispose();
     }
 }
