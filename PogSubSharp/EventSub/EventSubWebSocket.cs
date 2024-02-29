@@ -44,7 +44,7 @@ public class EventSubWebSocket : IAsyncDisposable
     
     public async Task ConnectAsync(Uri? uri = null)
     {
-        var builder = new UriBuilder(uri ?? new Uri("wss://eventsub.wss.twitch.tv/ws"));
+        UriBuilder? builder = new UriBuilder(uri ?? new Uri("wss://eventsub.wss.twitch.tv/ws"));
         builder.Query = $"keepalive_timeout_seconds={_keepAliveInterval}";
         await _client.ConnectAsync(builder.Uri, _ct);
         
@@ -147,7 +147,7 @@ public class EventSubWebSocket : IAsyncDisposable
     {
         while (!IsDisposed)
         {
-            var rawFrame = await ReceiveAsync();
+            WebSocketFrame rawFrame = await ReceiveAsync();
             
             if (rawFrame.IsClosed)
             {
