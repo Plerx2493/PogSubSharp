@@ -12,13 +12,6 @@ public class EventSubEventParser
             throw new JsonException();
         }
 
-        reader.Read();
-
-        if (reader.TokenType != JsonTokenType.PropertyName)
-        {
-            throw new JsonException();
-        }
-
         IEventSubEvent? eventSubEvent = eventType switch
         {
             "channel.channel_points_custom_reward_redemption.add" => JsonSerializer.Deserialize<ChannelPointsCustomRewardRedemptionAddEvent>(ref reader, options),
