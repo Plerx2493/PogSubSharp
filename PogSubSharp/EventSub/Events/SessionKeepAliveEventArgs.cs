@@ -1,4 +1,4 @@
-﻿namespace PogSubSharp.Models.EventSub.Events;
+﻿namespace PogSubSharp.EventSub.Events;
 
 public class SessionKeepAliveEventArgs
 {

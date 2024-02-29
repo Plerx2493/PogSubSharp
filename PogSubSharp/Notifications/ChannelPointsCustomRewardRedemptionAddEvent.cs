@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PogSubSharp.Models.Events;
+namespace PogSubSharp.Notifications;
 
-public class ChannelPointsCustomRewardRedemptionAddEvent : IEventSubEvent
+public class ChannelPointsCustomRewardRedemptionAddEvent : IEventSubNotification
 {
     [JsonPropertyName("id")]
     public string Id { get; set; }

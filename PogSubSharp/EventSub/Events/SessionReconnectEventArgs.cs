@@ -1,4 +1,6 @@
-﻿namespace PogSubSharp.Models.EventSub.Events;
+﻿using PogSubSharp.EventSub.Transport;
+
+namespace PogSubSharp.EventSub.Events;
 
 public class SessionReconnectEventArgs
 {

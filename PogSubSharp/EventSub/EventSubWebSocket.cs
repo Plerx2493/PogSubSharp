@@ -4,12 +4,12 @@ using System.Text.Json;
 using CommunityToolkit.HighPerformance;
 using CommunityToolkit.HighPerformance.Buffers;
 using Microsoft.Extensions.Logging;
+using PogSubSharp.EventSub.Events;
+using PogSubSharp.EventSub.Transport;
 using PogSubSharp.Models;
-using PogSubSharp.Models.Events;
-using PogSubSharp.Models.EventSub;
-using PogSubSharp.Models.EventSub.Events;
+using PogSubSharp.Notifications;
 
-namespace PogSubSharp;
+namespace PogSubSharp.EventSub;
 
 public class EventSubWebSocket : IAsyncDisposable
 {
@@ -202,7 +202,7 @@ public class EventSubWebSocket : IAsyncDisposable
         });
     }
 
-    private void HandleNotification(EventSubSubscription payloadSubscription, IEventSubEvent payloadEvent)
+    private void HandleNotification(EventSubSubscription payloadSubscription, IEventSubNotification payloadEvent)
     {
         OnNotification?.Invoke(this, new NotificationEventArgs
         {

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PogSubSharp.Models.EventSub;
+namespace PogSubSharp.EventSub.Transport;
 
 public class EventSubTransport
 {

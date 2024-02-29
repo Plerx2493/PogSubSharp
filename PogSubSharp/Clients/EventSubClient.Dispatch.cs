@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using PogSubSharp.Models.EventSub.Events;
+using PogSubSharp.EventSub;
+using PogSubSharp.EventSub.Events;
 
 namespace PogSubSharp.Clients;
 

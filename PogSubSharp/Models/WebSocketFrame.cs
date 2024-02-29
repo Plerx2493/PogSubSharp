@@ -1,4 +1,4 @@
-﻿using PogSubSharp.Models.EventSub;
+﻿using PogSubSharp.EventSub.Transport;
 
 namespace PogSubSharp.Models;
 

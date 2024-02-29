@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using PogSubSharp.Models.EventSub;
+using PogSubSharp.EventSub.Transport;
 
 namespace PogSubSharp.Converter;
 
@@ -49,7 +49,7 @@ public class EventSubMessagePayloadConverter : JsonConverter<EventSubMessagePayl
                     break;
                 case "event":
                     ArgumentNullException.ThrowIfNull(eventType);
-                    payload.Event = EventSubEventParser.Parse(ref reader, options, eventType);
+                    payload.Event = EventSubNotificationParser.Parse(ref reader, options, eventType);
                     break;
                 default:
                     reader.Skip();

@@ -1,7 +1,6 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace PogSubSharp.Models.EventSub;
+namespace PogSubSharp.EventSub.Transport;
 
 public class EventSubFrame
 {

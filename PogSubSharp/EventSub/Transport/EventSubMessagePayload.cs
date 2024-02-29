@@ -1,8 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 using PogSubSharp.Converter;
-using PogSubSharp.Models.Events;
+using PogSubSharp.Notifications;
 
-namespace PogSubSharp.Models.EventSub;
+namespace PogSubSharp.EventSub.Transport;
 
 [JsonConverter(typeof(EventSubMessagePayloadConverter))]
 public class EventSubMessagePayload
@@ -14,5 +14,5 @@ public class EventSubMessagePayload
     public EventSubSubscription? Subscription { get; set; }
     
     [JsonPropertyName("event")]
-    public IEventSubEvent? Event { get; set; }
+    public IEventSubNotification? Event { get; set; }
 }
