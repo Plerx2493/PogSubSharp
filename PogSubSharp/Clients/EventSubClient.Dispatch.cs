@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using PogSubSharp.EventSub;
 using PogSubSharp.EventSub.Events;
+using PogSubSharp.EventSub.Transport;
+using PogSubSharp.Notifications;
 
 namespace PogSubSharp.Clients;
 
@@ -8,7 +10,7 @@ public partial class EventSubClient
 {
     public async Task ConnectAsync(string uri)
     {
-        var wsUri = new Uri(uri);
+        Uri wsUri = new Uri(uri);
         await _webSocket.ConnectAsync(wsUri);
         
         _webSocket.OnError += OnErrorAsync;
@@ -33,7 +35,7 @@ public partial class EventSubClient
 
     private async Task HandleReconnectAsync(Uri uri)
     {
-        var oldWebSocket = _webSocket;
+        EventSubWebSocket oldWebSocket = _webSocket;
         _webSocket = new EventSubWebSocket(_logger);
         
         // setup new event handlers
@@ -48,7 +50,7 @@ public partial class EventSubClient
         await _webSocket.ConnectAsync(uri);
         
         // wait for welcome message on new socket
-        var ct = new TaskCompletionSource();
+        TaskCompletionSource? ct = new TaskCompletionSource();
         _webSocket.OnSessionWelcome += WelcomeReceived;
         await ct.Task;
         _webSocket.OnSessionWelcome -= WelcomeReceived;
@@ -84,15 +86,17 @@ public partial class EventSubClient
 
     private async void OnRevocationAsync(object? sender, RevocationEventArgs revocationEventArgs)
     {
-        var payloadSubscription = revocationEventArgs.Subscription;
+        EventSubSubscription payloadSubscription = revocationEventArgs.Subscription;
         _logger.LogWarning("Subscription {SubscriptionId} was revoked", payloadSubscription.Id);
     }
 
     private async void OnNotificationAsync(object? sender, NotificationEventArgs notificationEventArgs)
     {
-        var payloadSubscription = notificationEventArgs.Subscription;
-        var payloadEvent = notificationEventArgs.Event;
+        EventSubSubscription payloadSubscription = notificationEventArgs.Subscription;
+        IEventSubNotification payloadEvent = notificationEventArgs.Event;
        _logger.LogInformation("Received notification for subscription {SubscriptionId}", payloadSubscription.Id);
+       
+       _ = NotificationHandler.HandleNotificationAsync(payloadEvent);
     }
 
     private async void OnSessionKeepAliveAsync(object? sender, SessionKeepAliveEventArgs sessionKeepAliveEventArgs)
@@ -102,16 +106,16 @@ public partial class EventSubClient
 
     private async void OnSessionReconnectAsync(object? sender, SessionReconnectEventArgs sessionReconnectEventArgs)
     {
-        var session = sessionReconnectEventArgs.Session;
+        EventSocketsSession session = sessionReconnectEventArgs.Session;
         _logger.LogInformation("Reconnecting to session {SessionId}", session.Id);
         
-        var reconnectUri = new Uri(session.ReconnectUrl!);
+        Uri reconnectUri = new Uri(session.ReconnectUrl!);
         await HandleReconnectAsync(reconnectUri);
     }
 
     private async void OnSessionWelcomeAsync(object? sender, SessionWelcomeEventArgs sessionWelcomeEventArgs)
     {
-        var session = sessionWelcomeEventArgs.Session;
+        EventSocketsSession session = sessionWelcomeEventArgs.Session;
         _logger.LogInformation("Connected to session {SessionId}", session.Id);
     }
 }

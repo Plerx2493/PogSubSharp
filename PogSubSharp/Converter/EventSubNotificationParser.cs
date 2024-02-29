@@ -1,33 +1,27 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using PogSubSharp.Notifications;
 
 namespace PogSubSharp.Converter;
 
-
 public class EventSubNotificationParser
 {
-    private static readonly Dictionary<string, Type> lookupTable = new()
-    {
-        {"channel.channel_points_custom_reward_redemption.add", typeof(ChannelPointsCustomRewardRedemptionAddEvent)}
-    };
 
     public static IEventSubNotification Parse(ref Utf8JsonReader reader, JsonSerializerOptions options, string eventType)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
         {
-            throw new JsonException($"Wrong usage of {nameof(EventSubNotificationParser)}");
-        }
-        
-        if (lookupTable.TryGetValue(eventType, out Type? type))
-        {
-            throw new JsonException("Not supported event type");
+            throw new JsonException($"Wrong usage of {{nameof(EventSubNotificationParser)}}");
         }
 
-        object? rawNotification = JsonSerializer.Deserialize(ref reader, type!);
-
-        if (rawNotification is null || rawNotification is not IEventSubNotification notification)
+        IEventSubNotification? notification = eventType switch
         {
-            throw new JsonException("Could not parse EventSubNotification");
+            "channel.channel_points_custom_reward_redemption.add" => JsonSerializer.Deserialize<ChannelPointsCustomRewardRedemptionAddEvent>(ref reader, options),
+            _ => throw new JsonException("unknown notification type")
+        };
+
+        if (notification is null)
+        {
+            throw new JsonException("Notification could not be deserialized");
         }
 
         return notification;
