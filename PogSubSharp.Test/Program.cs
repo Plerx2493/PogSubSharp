@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PogSubSharp.Clients;
@@ -27,10 +28,9 @@ class Program
        Test test = new Test();
        Test2 test2 = new Test2();
        
-       //client.NotificationHandler.RegisterHandler<IEventSubNotification>(test.HandleNotificationAsync);
-       //client.NotificationHandler.RegisterHandler<ChannelPointsCustomRewardRedemptionAddEvent>(test2.HandleNotificationAsync);
-       //client.NotificationHandler.RegisterHandler<ChannelPointsCustomRewardRedemptionAddEvent>(test.HandleNotificationAsync);
-       
+       client.NotificationHandler.RegisterHandler<IEventSubNotification>(test.DoSomethingAsync);
+       client.NotificationHandler.RegisterHandler<ChannelPointsCustomRewardRedemptionAddEvent>(test2.DoSomethingAsync);
+       client.NotificationHandler.RegisterHandler<ChannelPointsCustomRewardRedemptionAddEvent>(test.DoSomethingAsync);
        client.NotificationHandler.RegisterStaticHandlers(Assembly.GetExecutingAssembly());
        
        await client.ConnectAsync("ws://127.0.0.1:8080/ws");
@@ -40,18 +40,34 @@ class Program
 
 class Test : IEventSubNotificationHandler<IEventSubNotification>
 {
+    string name = "test";
+    
     public static Task HandleNotificationAsync(IEventSubNotification notification)
     {
         Console.WriteLine("Global handler");
+        return Task.CompletedTask;
+    }
+    
+    public Task DoSomethingAsync(IEventSubNotification notification)
+    {
+        Console.WriteLine($"Global handler in class {name}");
         return Task.CompletedTask;
     }
 }
 
 class Test2 : IEventSubNotificationHandler<ChannelPointsCustomRewardRedemptionAddEvent>
 {
+    string name = "test2";
+    
     public static Task HandleNotificationAsync(ChannelPointsCustomRewardRedemptionAddEvent notification)
     {
         Console.WriteLine("Channel update handler");
+        return Task.CompletedTask;
+    }
+    
+    public Task DoSomethingAsync(IEventSubNotification notification)
+    {
+        Console.WriteLine($"Global handler in class {name}");
         return Task.CompletedTask;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace PogSubSharp.Notifications;
 
@@ -7,7 +8,7 @@ public class NotificationHandler
 {
     public delegate Task NotificationHandlerDelegate<T>(T notification) where T : IEventSubNotification;
 
-    private readonly ConcurrentDictionary<Type, List<Delegate>> Handlers =
+    private readonly Dictionary<Type, List<Func<IEventSubNotification, Task>>> Handlers =
         new();
 
     private readonly List<NotificationHandlerDelegate<IEventSubNotification>> CatchEverythingHandlers = [];
@@ -20,58 +21,63 @@ public class NotificationHandler
             return;
         }
 
-        List<Delegate> typeList = Handlers.GetOrAdd(typeof(T), _ => new());
-        typeList.Add(handler);
+        if (Handlers.TryGetValue(typeof(T), out List<Func<IEventSubNotification, Task>>? handlers))
+        {
+            handlers.Add(notification => handler((T) notification));
+        }
+        else
+        {
+            Handlers[typeof(T)] = new List<Func<IEventSubNotification, Task>> {notification => handler((T) notification)};
+        }
     }
+    
 
     public void RegisterStaticHandlers(Assembly assembly)
     {
-        IEnumerable<Type> handlers = assembly.GetTypes()
-            .Where(type => type.GetInterfaces().Any(i =>
-                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventSubNotificationHandler<>)));
-
-
-        foreach (Type type in handlers)
+        foreach (Type type in assembly.GetTypes())
         {
+            Type? genericEventSubNotificationHandlerType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventSubNotificationHandler<>));
+            if (genericEventSubNotificationHandlerType is null)
+            {
+                continue;
+            }
+            
+            // Grab the IEventSubNotificationHandler<>.HandleNotificationAsync static abstract method
             MethodInfo? staticMethod = type.GetMethod("HandleNotificationAsync");
-            
-            if (staticMethod is null)
-            {
-                continue;
-            }
-            
-            if (!staticMethod.IsStatic)
-            {
-                continue;
-            }
-            
-            Type? genericType = type.GetInterfaces().First(i =>
-                    i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventSubNotificationHandler<>))
-                .GetGenericArguments().FirstOrDefault();
-
-            if (genericType is null)
+            if (staticMethod is null || !staticMethod.IsStatic)
             {
                 continue;
             }
 
+            // Grab the T in IEventSubNotificationHandler<T>
+            Type genericType = genericEventSubNotificationHandlerType.GetGenericArguments()[0];
+
+            // Create a delegate for the static method
             Delegate handler = Delegate.CreateDelegate(typeof(NotificationHandlerDelegate<>).MakeGenericType(genericType), null, staticMethod);
-            
-            if (genericType == typeof(IEventSubNotification))
+            if (handler is not NotificationHandlerDelegate<IEventSubNotification> notificationDelegate)
             {
-                NotificationHandlerDelegate<IEventSubNotification>? notificationDelegate =
-                    (NotificationHandlerDelegate<IEventSubNotification>?)handler;
-
-                if (notificationDelegate is null)
-                {
-                    continue;
-                }
-                
-                CatchEverythingHandlers.Add(notificationDelegate);
+                // The fuck happened here?
                 continue;
             }
-
-            List<Delegate> typeList = Handlers.GetOrAdd(genericType, _ => []);
-            typeList.Add(handler);
+            // If the generic type *is* IEventSubNotification, add it to the catch-all list
+            else if (genericType == typeof(IEventSubNotification))
+            {
+                CatchEverythingHandlers.Add(notificationDelegate);
+            }
+            // If the generic type *implements* IEventSubNotification, add it to the type specific list
+            else
+            {
+                Func<IEventSubNotification, Task> func = Unsafe.As<Func<IEventSubNotification, Task>>(handler);
+                
+                if (Handlers.TryGetValue(genericType, out List<Func<IEventSubNotification, Task>>? handlers))
+                {
+                    handlers.Add(func);
+                }
+                else
+                {
+                    Handlers[genericType] = [func];
+                }
+            }
         }
     }
 
@@ -83,13 +89,12 @@ public class NotificationHandler
         {
             tasks.Add(handler(notification));
         }
-
-        if (Handlers.TryGetValue(notification.GetType(),
-                out List<Delegate>? handlers))
+        
+        if (Handlers.TryGetValue(notification.GetType(), out List<Func<IEventSubNotification, Task>>? handlers))
         {
-            foreach (Delegate @delegate in handlers)
+            foreach (Func<IEventSubNotification, Task> handler in handlers)
             {
-                tasks.Add((Task)@delegate.DynamicInvoke([notification])!);
+                tasks.Add(handler(notification));
             }
         }
 
