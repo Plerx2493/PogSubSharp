@@ -1,5 +1,33 @@
 [
     {
+        "Id": "channel.update",
+        "TypeName": "ChannelUpdateEvent"
+    },
+    {
+        "Id": "channel.follow",
+        "TypeName": "ChannelFollowEvent"
+    },
+    {
+        "Id": "channel.ad_break.begin",
+        "TypeName": "ChannelAdBreakBeginEvent"
+    },
+    {
+        "Id": "channel.chat.clear",
+        "TypeName": "ChannelChatClearEvent"
+    },
+    {
+        "Id": "channel.chat.clear_user_messages",
+        "TypeName": "ChannelChatClearUserMessagesEvent"
+    },
+    {
+        "Id": "channel.chat.message",
+        "TypeName": "ChannelChatMessageEvent"
+    },
+    {
+        "Id": "channel.chat.message_delete",
+        "TypeName": "ChannelChatMessageDeleteEvent"
+    },
+    {
         "Id": "channel.channel_points_custom_reward_redemption.add",
         "TypeName": "ChannelPointsCustomRewardRedemptionAddEvent"
     }

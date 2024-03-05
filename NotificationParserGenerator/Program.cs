@@ -9,6 +9,7 @@ public class Programm
         """
         using System.Text.Json;
         using PogSubSharp.Notifications;
+        using PogSubSharp.Notifications.EventSubNotifications.Channel;
 
         namespace PogSubSharp.Converter;
 
@@ -19,17 +20,15 @@ public class Programm
             {
                 if (reader.TokenType != JsonTokenType.StartObject)
                 {
-                    throw new JsonException($"Wrong usage of {{nameof(EventSubNotificationParser)}}");
+                    throw new JsonException($"Wrong usage of {nameof(EventSubNotificationParser)}");
                 }
         
                 IEventSubNotification? notification = eventType switch
                 {
-        
         """;
 
     private const string classEnd =
         """
-        
                     _ => throw new JsonException("unknown notification type")
                 };
         
@@ -72,16 +71,16 @@ public class Programm
 
         StringBuilder sb = new StringBuilder();
         
-        sb.Append($"// auto generated at {DateTimeOffset.UtcNow} \n\n");
+        sb.AppendLine($"// auto generated at {DateTimeOffset.UtcNow} \n");
 
-        sb.Append(classStart);
+        sb.AppendLine(classStart);
         
         foreach (Notification notification in notifications)
         {
-            sb.Append($"            \"{notification.Id}\" => JsonSerializer.Deserialize<{notification.TypeName}>(ref reader, options),");
+            sb.AppendLine($"            \"{notification.Id}\" => JsonSerializer.Deserialize<{notification.TypeName}>(ref reader, options),");
         }
         
-        sb.Append(classEnd);
+        sb.AppendLine(classEnd);
 
         using FileStream fs = File.Create("./EventSubNotificationParser.cs");
         byte[] bytes = new UTF8Encoding(true).GetBytes(sb.ToString());

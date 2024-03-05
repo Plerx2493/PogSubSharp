@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PogSubSharp.Clients;
 using PogSubSharp.Notifications;
+using PogSubSharp.Notifications.EventSubNotifications.Channel;
 using Serilog;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
@@ -23,24 +24,25 @@ class Program
         ILogger<EventSubClient> microsoftLogger = new SerilogLoggerFactory(Log.Logger)
             .CreateLogger<EventSubClient>();
         
-       EventSubClient client = new EventSubClient(microsoftLogger);
+       EventSubClient client = new(microsoftLogger);
        
-       Test test = new Test();
-       Test2 test2 = new Test2();
+       Test test = new();
+       Test2 test2 = new();
        
        client.NotificationHandler.RegisterHandler<IEventSubNotification>(test.DoSomethingAsync);
        client.NotificationHandler.RegisterHandler<ChannelPointsCustomRewardRedemptionAddEvent>(test2.DoSomethingAsync);
        client.NotificationHandler.RegisterHandler<ChannelPointsCustomRewardRedemptionAddEvent>(test.DoSomethingAsync);
        client.NotificationHandler.RegisterStaticHandlers(Assembly.GetExecutingAssembly());
+       //client.NotificationHandler.FreezeHandlers();
        
        await client.ConnectAsync("ws://127.0.0.1:8080/ws");
        await Task.Delay(-1);
     }
 }
 
-class Test : IEventSubNotificationHandler<IEventSubNotification>
+internal class Test : IEventSubNotificationHandler<IEventSubNotification>
 {
-    string name = "test";
+    readonly string name = "test";
     
     public static Task HandleNotificationAsync(IEventSubNotification notification)
     {
@@ -55,9 +57,9 @@ class Test : IEventSubNotificationHandler<IEventSubNotification>
     }
 }
 
-class Test2 : IEventSubNotificationHandler<ChannelPointsCustomRewardRedemptionAddEvent>
+internal class Test2 : IEventSubNotificationHandler<ChannelPointsCustomRewardRedemptionAddEvent>
 {
-    string name = "test2";
+    readonly string name = "test2";
     
     public static Task HandleNotificationAsync(ChannelPointsCustomRewardRedemptionAddEvent notification)
     {

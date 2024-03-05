@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PogSubSharp.Notifications;
+namespace PogSubSharp.Notifications.EventSubNotifications.Channel;
 
 public class ChannelPointsCustomRewardRedemptionAddEvent : IEventSubNotification
 {

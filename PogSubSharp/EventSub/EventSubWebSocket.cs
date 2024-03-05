@@ -15,13 +15,13 @@ public class EventSubWebSocket : IAsyncDisposable
 {
     private readonly ClientWebSocket _client;
     private readonly byte[] _receiveRawBuffer = new byte[4096];
-    private ArrayPoolBufferWriter<byte> _receiveBuffer = new();
+    private readonly ArrayPoolBufferWriter<byte> _receiveBuffer = new();
     private readonly CancellationToken _ct;
     private readonly ILogger _logger;
-    private int _keepAliveInterval;
-    private readonly bool IsDisposed = false;
+    private readonly int _keepAliveInterval;
     private readonly CancellationTokenSource _backgroundCts = new();
     private DateTimeOffset _lastKeepAlive;
+    private bool IsDisposed;
 
     public EventSubWebSocket(ILogger logger, int keepAliveInterval = 10, CancellationToken ct = default)
     {
@@ -202,8 +202,14 @@ public class EventSubWebSocket : IAsyncDisposable
         });
     }
 
-    private void HandleNotification(EventSubSubscription payloadSubscription, IEventSubNotification payloadEvent)
+    private void HandleNotification(EventSubSubscription payloadSubscription, IEventSubNotification? payloadEvent)
     {
+        if (payloadEvent is null)
+        {
+            _logger.LogWarning("Received notification but could not deserialize it. Type: {Type}", payloadSubscription?.Type);
+            return;
+        }
+        
         OnNotification?.Invoke(this, new NotificationEventArgs
         {
             Subscription = payloadSubscription,
@@ -239,19 +245,24 @@ public class EventSubWebSocket : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+        
         try
         {
             await _client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disposing", _ct);
         }
         catch (Exception)
         {
-            if (IsDisposed)
-            {
-                return;
-            }
+            // ignore
         }
         
         _client.Dispose();
         _receiveBuffer.Dispose();
+        _backgroundCts.Dispose();
+        
+        IsDisposed = true;
     }
 }

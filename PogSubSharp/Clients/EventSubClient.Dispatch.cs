@@ -10,7 +10,12 @@ public partial class EventSubClient
 {
     public async Task ConnectAsync(string uri)
     {
-        Uri wsUri = new Uri(uri);
+        if (!NotificationHandler.IsReady)
+        {
+            throw new InvalidOperationException("NotificationHandler is not ready");
+        }
+        
+        Uri wsUri = new(uri);
         await _webSocket.ConnectAsync(wsUri);
         
         _webSocket.OnError += OnErrorAsync;
