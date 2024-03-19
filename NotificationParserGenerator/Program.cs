@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace Generator;
+namespace NotificationParserGenerator;
 
 public class Programm
 {
@@ -69,7 +69,7 @@ public class Programm
             return;
         }
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
         
         sb.AppendLine($"// auto generated at {DateTimeOffset.UtcNow} \n");
 
